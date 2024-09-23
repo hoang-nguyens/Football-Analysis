@@ -45,7 +45,7 @@ class Tracker:
                     detection_supervison.class_id[object_ind] = class_name_inv['player']
             
             for detect in detection_tracks:
-                bbox = detect[0].to_list()
+                bbox = detect[0].tolist()
                 cls_id = detect[3]
                 track_id = detect[4]
 
@@ -55,7 +55,7 @@ class Tracker:
                     tracks['referees'][frame_num][track_id] = {'bbox': bbox}
 
             for detect in detection_supervison:
-                bbox = detect[0].to_list()
+                bbox = detect[0].tolist()
                 cls_id = detect[3]
 
                 if cls_id == class_name_inv['ball']:
@@ -66,30 +66,30 @@ class Tracker:
         
         return tracks
     
-    def fill_ball_data(self, ball_position): # handle with null data of ball position
-        # ball_positon = tracks['ball']
-        position = [x.get(1, {}).get('bbox', {}) for x in ball_position]
+    def fill_ball_data(self,ball_positions):
+        ball_positions = [x.get(1,{}).get('bbox',[]) for x in ball_positions]
+        df_ball_positions = pd.DataFrame(ball_positions,columns=['x1','y1','x2','y2'])
 
-        df_position = pd.DataFrame(position, columns=['x1', 'y1', 'x2', 'y2'])
+        # Interpolate missing values
+        df_ball_positions = df_ball_positions.interpolate()
+        df_ball_positions = df_ball_positions.bfill()
 
-        df_position = df_position.interpolate()
-        df_position = df_position.bfill()
-
-        ball_position = [ {1:{'bbox':x}} for x in df_position.to_numpy().to_list()]
-
-        return ball_position
+        ball_positions = [{1: {"bbox":x}} for x in df_ball_positions.to_numpy().tolist()]
+        
+        return ball_positions
     
     def add_position_to_tracks(self, tracks): # beside tracks[name][n_frame][track_id] we have dict with 1 element is 'bbox':bbox, now add 'position'
         for object, object_tracks in tracks.items():
-            for frame_num, tracks in enumerate(object_tracks):
-                for track_id, track_bbox in tracks.items():
+            for frame_num, track in enumerate(object_tracks):
+                for track_id, track_bbox in track.items():
                     bbox = track_bbox['bbox']
                     if object == 'ball':
-                        tracks[object][frame_num][track_id]['position'] = get_center(bbox)
-                    if object == 'player':
-                        tracks[object][frame_num][track_id]['position'] = get_foot(bbox)
-        return tracks
-    
+                        position = get_center(bbox)
+                        
+                    else:
+                        position = get_foot(bbox)
+                    tracks[object][frame_num][track_id]['position']= position
+       
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         y_ellipse = bbox[3]
         x_ellipse, _ = get_center(bbox)
