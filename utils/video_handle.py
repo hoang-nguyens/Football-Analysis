@@ -8,6 +8,7 @@ def read_video(video_path):
 
         if not ret: break
         frames.append(frame)
+    print(len(frames))
     return frames
 
 import cv2
