@@ -91,14 +91,15 @@ class Tracker:
                     tracks[object][frame_num][track_id]['position']= position
        
     def draw_ellipse(self, frame, bbox, color, track_id = None):
-        y_ellipse = bbox[3]
+        y_ellipse = int(bbox[3])
         x_ellipse, _ = get_center(bbox)
+        x_ellipse = int(x_ellipse)
         major_axis = get_width(bbox)
 
         cv2.ellipse(
             frame,
             center = (x_ellipse, y_ellipse),
-            axes = (major_axis, major_axis * 0.6),
+            axes = (int(major_axis), int(major_axis * 0.35)),
             angle = 0, #  flat ellipse / no rotation
             startAngle = -45,
             endAngle = 235,
@@ -106,33 +107,38 @@ class Tracker:
             thickness = 2,
             lineType= cv2.LINE_4
         )
+
+        rectangle_width = 40
+        rectangle_height=20
+        x1_rect = x_ellipse - rectangle_width//2
+        x2_rect = x_ellipse + rectangle_width//2
+        y1_rect = (y_ellipse - rectangle_height//2) +15
+        y2_rect = (y_ellipse + rectangle_height//2) +15
+
         if track_id is not None:
-            x1_rectangle = (x_ellipse + 10)
-            x2_rectangle = (x_ellipse - 10)
-            y1_rectangle = (y_ellipse + 25)
-            y2_rectangle = (y_ellipse - 25)
-
-            cv2.rectangle(
-                frame,
-                pt1 = (x1_rectangle, y1_rectangle),
-                pt2 = (x2_rectangle, y2_rectangle),
-                color = color,
-                thickness = -1
-            )
-
+            cv2.rectangle(frame,
+                          (int(x1_rect),int(y1_rect) ),
+                          (int(x2_rect),int(y2_rect)),
+                          color,
+                          -1)
+            
+            x1_text = x1_rect+12
+            if track_id > 99:
+                x1_text -=10
+            
             cv2.putText(
                 frame,
-                f'track_id',
-                (x1_rectangle + 12, y1_rectangle + 15),
-                cv2.FONT_HERSHEY_COMPLEX,
+                f"{track_id}",
+                (int(x1_text),int(y1_rect+15)),
+                cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
-                (0, 0, 0),
+                (0,0,0),
                 2
             )
         return frame
     
     def draw_triangle(self, frame, bbox, color):
-        y = bbox[1]
+        y = int(bbox[1])
         x, _ = get_center(bbox)
         triangle_point = np.array([
             [x, y],
@@ -148,26 +154,31 @@ class Tracker:
         )
         return frame
     
-    def draw(self, video_frame, tracks):
-        output_video_frame = []
-        for frame_num , frame in enumerate(output_video_frame):
+    def draw(self,video_frames, tracks):
+        output_video_frames= []
+        for frame_num, frame in enumerate(video_frames):
             frame = frame.copy()
 
-            for track_id, player in tracks['players'][frame_num].items():
-                color = player.get('team_color', (0,0, 255))
-                frame = self.draw_ellipse(frame, player['bbox'], color, track_id)
-                
-                if player.get('has_ball', False):
-                    frame = self.draw_triangle(frame, player['bbox'], color)
+            player_dict = tracks["players"][frame_num]
+            ball_dict = tracks["ball"][frame_num]
+            referee_dict = tracks["referees"][frame_num]
+
+            for track_id, player in player_dict.items():
+                color = player.get("team_color",(0,0,255))
+                frame = self.draw_ellipse(frame, player["bbox"],color, track_id)
+
+                if player.get('has_ball',False):
+                    frame = self.draw_triangle(frame, player["bbox"],(0,0,255))
+
+            for _, referee in referee_dict.items():
+                frame = self.draw_ellipse(frame, referee["bbox"],(0,255,255))
             
-            for track_id, referee in tracks['referees'][frame_num].items():
-                color = (0, 255, 255)
-                frame = self.draw_ellipse(frame, referee['bbox'], color)
-            for track_id, ball in tracks['ball'][frame_num].items():
-                color = (0, 255, 0)
-                frame = self.draw_triangle(frame,ball['bbox'], color)
-            output_video_frame.append(frame)
-        return output_video_frame
+            for track_id, ball in ball_dict.items():
+                frame = self.draw_triangle(frame, ball["bbox"],(0,255,0))
+
+            output_video_frames.append(frame)
+
+        return output_video_frames
 
 
 
